@@ -224,65 +224,6 @@ uint32_t ReadEEPROM_Long(uint8_t addr)  // считываем значение из EEPROM
 		//eeprom_read_word((uint16_t*) addr)
   return ir_code;
 }
-//**************Timer****************************
-#define DIV_0    TCCR1B = (1 << CS10) //Делитель 0
-#define DIV_8    TCCR1B = (1 << CS11) //Делитель 8
-#define DIV_64   TCCR1B = ((1 << CS11) | (1 << CS10)) //Делитель 64
-#define DIV_256  TCCR1B = (1 << CS12) //Делитель 256
-#define DIV_1024 TCCR1B = ((1 << CS12) | (1 << CS10)) //Делитель 1024
-
-void (*func)();
-volatile uint16_t dub_tcnt1;
- 
-void StartTimer1(void (*isr)(), uint32_t set_us)
-{	
-//	cli();
-	TIMSK1 &= ~(1<<TOIE1);//запретить прерывания по таймеру1
-	func = *isr; 	//указатель на функцию
-	TCCR1A = 0;		//timer1 off
-	TCCR1B = 0; 	//prescaler off (1<<CTC1)-3й бит
-
-	//uint8_t oldSREG = SREG;
-
-	//if(set_us < 6) set_us = 6;	//min
-	//if(set_us > 4194304) set_us = 4194303;  //max
-	if(set_us > 5 && set_us < 4096) { set_us = 65584 - (set_us << 4); DIV_0;} else
-	if(set_us > 4095 && set_us < 32768) { set_us = 65542 - (set_us << 1); DIV_8; } else
-	if(set_us > 32767 && set_us < 262144) { set_us = 65536 - (set_us >> 2); DIV_64;} else
-	if(set_us > 262143 && set_us < 1048576) { set_us = 65536 - (set_us >> 4); DIV_256; } else
-	if(set_us > 1048575 && set_us < 4194304) { set_us = 65536 - (set_us >> 6);  DIV_1024;} else TCCR1B = 1;
-	
-	
-	dub_tcnt1 = set_us;
-	TCNT1 = 0;//dub_tcnt1;	// выставляем начальное значение TCNT1 
-	//OCR1A = dub_tcnt1;	
-	//TCNT1H=0;//обнуляем регистр TCNT1
-	//TCNT1L=0;
-	TIMSK1 |= (1 << TOIE1); // разрешаем прерывание по переполнению таймера	
-	sei();   
-}
-
-void StopTimer1(void)
-{
-  TIMSK1 &= ~(1<<TOIE1);    //запретить прерывания по таймеру1
-}
-
-void ResumeTimer1(void)
-{
-	TIMSK1 |= (1<<TOIE1);	//Продолжить отсчет, (разрешить прерывания по таймеру1)
-}
-
-void RestartTimer1(void)
-{
-	TCNT1 = dub_tcnt1;
-	TIMSK1 |= (1<<TOIE1);	//разрешить прерывания по таймеру1
-}
-
-ISR(TIMER1_OVF_vect) 
-{
-	TCNT1 = dub_tcnt1;	  
-	(*func)();
-}
 //**************Поиск макс повторяющегося элемента в массиве****************************
 uint16_t find_similar(uint16_t *buf, uint8_t size_buff, uint8_t range) 
 {
